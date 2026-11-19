@@ -22,9 +22,11 @@ Execution order: `schema.sql`, then `data.sql` (optional), then `queries.sql`.
 
 ## Modelling decisions and assumptions
 
+The UML diagram uses conceptual names (e.g. `ConferenceEdition`, `authorOrder`). The relational model uses the same relation and attribute names as `schema.sql` (e.g. `conference_edition`, `position`).
+
 ### Core
 
-1. **Edition identity.** A Conference Edition has a surrogate key `edition_id`. The constraint `UNIQUE (conference_id, year)` ensures that a Conference cannot have two editions in the same year.
+1. **Edition identity.** A Conference Edition has a surrogate key `edition_id`. In the UML, `year` is the qualifier of the composition between Conference and ConferenceEdition, so a Conference has at most one Edition per year. In the relational model this becomes `{UK: conference_id, year}`, implemented as `UNIQUE (conference_id, year)`.
 2. **Participation in an edition** is represented by the table `edition_participant`. Triggers enforce that a Participant involved in an Activity also participates in its Conference Edition, including when an Activity changes edition or edition participation is removed.
 3. **Activity dates.** An Activity must fall within its edition (including the full end date). Triggers validate Activity inserts/updates and prevent shortening an edition's dates so that existing Activities fall outside them.
 4. **Roles** in an Activity are limited to `speaker`, `chair` and `attendee`.
@@ -44,7 +46,7 @@ Execution order: `schema.sql`, then `data.sql` (optional), then `queries.sql`.
 
 13. **Editors.** The requirements state that one or more Participants may act as Editors of a Proceedings publication, so each Proceedings must have at least one editor. This minimum is not enforced in the schema. Editors only need to be Participants of the system.
 14. **Published Contribution authors** keep their order in `contribution_author.position`. At least one author is required; this minimum is not enforced in the schema.
-15. **Page ranges** must satisfy `last_page >= first_page`. The UML states that contributions of the same Proceedings must not overlap (C8), but this rule is not enforced in the schema.
+15. **Page ranges** must satisfy `last_page >= first_page`. The UML states, in the note attached to PublishedContribution, that contributions of the same Proceedings must not overlap. This rule is not enforced in the schema.
 16. `publication_identifier` (ISBN or equivalent) is unique. `doi` is optional and unique when present.
 
 ### Integration A–F
@@ -68,7 +70,7 @@ Execution order: `schema.sql`, then `data.sql` (optional), then `queries.sql`.
 - Core Q1 uses `LEFT JOIN`, so Activities without Participants are listed.
 - Core Q2 counts distinct Activities per Participant and orders from largest to smallest.
 - Module A Q2 uses `LEFT JOIN`, so Papers without Reviews appear (0 reviews, average NULL).
-- Module F Q1 orders by `firstPage`, then by `authorOrder`.
+- Module F Q1 orders by `first_page`, then by `position`.
 - Module F Q2 aggregates the Editors into a single column (`string_agg`) and counts contributions with correlated subqueries to avoid duplicated rows.
 
 ## Example data (`data.sql`)

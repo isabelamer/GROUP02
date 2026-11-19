@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Relational Model - Conference Support System</title>
+<!--
+  Source of relational-model.pdf (regenerate with diagrams/build-pdf.ps1).
+  Notation as used in class: Relation (pk, attr [NN], #fk → Relation [NN]) {UK: a, b} {CK: ...}
+  Primary key underlined (including "→ Relation" when the key is also a foreign key).
+  Relation and attribute names match schema.sql.
+-->
+<style>
+  @page { size: A4; margin: 16mm 15mm 14mm 15mm; }
+  html, body { margin: 0; background: #fff; color: #000; }
+  body { font-family: Consolas, "Courier New", monospace; font-size: 9.6pt; line-height: 1.45; }
+  h1 { font-family: Arial, Helvetica, sans-serif; font-size: 14pt; font-weight: normal; margin: 0 0 6mm; }
+  h2 { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; font-weight: normal; margin: 7mm 0 2mm; page-break-after: avoid; }
+  p.rel { margin: 0 0 3.4mm; padding-left: 4ch; text-indent: -4ch; page-break-inside: avoid; }
+  p.rel span.c { display: block; text-indent: 0; }
+  ul.notes { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; margin: 0; padding-left: 5mm; }
+  ul.notes li { margin-bottom: 1.2mm; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9.4pt; }
+</style>
+</head>
+<body>
+
+<h1>Conference Support System — Relational Model</h1>
+
+<p class="rel">conference (<u>conference_id</u>, name [NN], acronym [NN], description [NN])</p>
+
+<p class="rel">conference_edition (<u>edition_id</u>, #conference_id → conference [NN], year [NN], start_date [NN], end_date [NN], location [NN])
+  <span class="c">{UK: conference_id, year}</span>
+  <span class="c">{CK: end_date &gt;= start_date}</span></p>
+
+<p class="rel">participant (<u>participant_id</u>, name [NN], email [NN] [UK], affiliation [NN])</p>
+
+<p class="rel">edition_participant (<u>#edition_id → conference_edition</u>, <u>#participant_id → participant</u>)</p>
+
+<p class="rel">activity (<u>activity_id</u>, #edition_id → conference_edition [NN], title [NN], description [NN], start_time [NN], end_time [NN])
+  <span class="c">{CK: end_time &gt; start_time}</span></p>
+
+<p class="rel">involvement (<u>#activity_id → activity</u>, <u>#participant_id → participant</u>, role [NN])
+  <span class="c">{CK: role IN ('speaker', 'chair', 'attendee')}</span></p>
+
+<p class="rel">paper (<u>paper_id</u>, #edition_id → conference_edition [NN], title [NN], abstract [NN], submission_date [NN], status [NN], decision, decision_date)
+  <span class="c">{CK: status IN ('submitted', 'under_review', 'withdrawn')}</span>
+  <span class="c">{CK: decision IN ('accepted', 'rejected')}</span>
+  <span class="c">{CK: (decision IS NULL) = (decision_date IS NULL)}</span>
+  <span class="c">{CK: decision_date &gt;= submission_date}</span></p>
+
+<p class="rel">authorship (<u>#paper_id → paper</u>, <u>#participant_id → participant</u>, position [NN])
+  <span class="c">{UK: paper_id, position}</span>
+  <span class="c">{CK: position &gt;= 1}</span></p>
+
+<p class="rel">review (<u>#paper_id → paper</u>, <u>#reviewer_id → participant</u>, score [NN], assessment [NN], recommendation [NN], submission_date [NN])
+  <span class="c">{CK: score BETWEEN 1 AND 5}</span>
+  <span class="c">{CK: recommendation IN ('accept', 'weak_accept', 'weak_reject', 'reject')}</span></p>
+
+<p class="rel">proceedings (<u>proceedings_id</u>, #edition_id → conference_edition [NN], title [NN], publication_date [NN], publication_identifier [NN] [UK])</p>
+
+<p class="rel">proceedings_editor (<u>#proceedings_id → proceedings</u>, <u>#participant_id → participant</u>)</p>
+
+<p class="rel">published_contribution (<u>contribution_id</u>, #proceedings_id → proceedings [NN], #paper_id → paper [UK], title [NN], first_page [NN], last_page [NN], doi [UK])
+  <span class="c">{CK: first_page &gt;= 1}</span>
+  <span class="c">{CK: last_page &gt;= first_page}</span></p>
+
+<p class="rel">contribution_author (<u>#contribution_id → published_contribution</u>, <u>#participant_id → participant</u>, position [NN])
+  <span class="c">{UK: contribution_id, position}</span>
+  <span class="c">{CK: position &gt;= 1}</span></p>
+
+<h2>Constraints enforced by triggers</h2>
+<ul class="notes">
+  <li>An activity's start and end must fall within the dates of its conference_edition (the end may be at any time of the edition's last day). The dates of an edition cannot be changed so as to exclude its existing activities.</li>
+  <li>A participant involved in an activity must participate in the conference_edition of that activity (<code>edition_participant</code>). This is checked when an involvement is inserted or updated, when an activity changes edition, and when a participation is removed.</li>
+  <li>A paper linked to a published_contribution must have decision = 'accepted' and belong to the same conference_edition as the proceedings of that contribution. A published paper cannot change its decision or edition, and the proceedings cannot change edition.</li>
+  <li>A participant cannot review a paper they authored, and cannot become an author of a paper they reviewed.</li>
+</ul>
+
+<h2>Constraints not enforced by the relational schema</h2>
+<ul class="notes">
+  <li>Page ranges of published contributions in the same proceedings must not overlap.</li>
+  <li>A review's submission_date must not precede the submission_date of its paper.</li>
+  <li>Every paper and every published contribution has at least one author; every proceedings has at least one published contribution and at least one editor.</li>
+</ul>
+
+</body>
+</html>

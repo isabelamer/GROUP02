@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>UML - Conference Support System</title>
+<!--
+  Source of uml.pdf. Edit the data below (classes / edges / notes),
+  then regenerate the PDF with diagrams/build-pdf.ps1.
+  Coordinates are in px. Class height = 38 + 22 * number of attributes.
+-->
+<style>
+  @page { size: 1800px 1320px; margin: 0; }
+  html, body { margin: 0; background: #fff; }
+  svg { display: block; font-family: Arial, Helvetica, sans-serif; }
+  text { white-space: pre; }
+</style>
+</head>
+<body>
+<svg id="d" xmlns="http://www.w3.org/2000/svg" width="1800" height="1320" viewBox="0 0 1800 1320"></svg>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("d");
+function el(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  (parent || svg).appendChild(e);
+  return e;
+}
+const U = "«unique, not null»", NN = "«not null»";
+
+// ---------------------------------------------------------------- classes
+const classes = {
+  Conference:            { x: 40,   y: 40,  w: 260, attrs: [`id: number ${U}`, `name: text ${NN}`, `acronym: text ${NN}`, `description: text ${NN}`] },
+  ConferenceEdition:     { x: 720,  y: 40,  w: 300, attrs: [`startDate: date ${NN}`, `endDate: date ${NN}`, `location: text ${NN}`] },
+  Participant:           { x: 720,  y: 480, w: 300, attrs: [`id: number ${U}`, `name: text ${NN}`, `email: text ${U}`, `affiliation: text ${NN}`] },
+  Activity:              { x: 1400, y: 460, w: 300, attrs: [`id: number ${U}`, `title: text ${NN}`, `description: text ${NN}`,
+                                                            `startDateTime: timestamp ${NN}`, `endDateTime: timestamp ${NN}`] },
+  Involvement:           { x: 1110, y: 360, w: 200, attrs: [`role: text ${NN}`] },
+
+  Paper:                 { x: 40,   y: 440, w: 300, attrs: [`id: number ${U}`, `title: text ${NN}`, `abstract: text ${NN}`, `submissionDate: date ${NN}`,
+                                                            `status: text ${NN}`, "decision: text", "decisionDate: date"] },
+  Authorship:            { x: 420,  y: 330, w: 220, attrs: [`authorOrder: number ${NN}`] },
+  Review:                { x: 400,  y: 680, w: 250, attrs: [`score: number ${NN}`, `assessment: text ${NN}`, `recommendation: text ${NN}`,
+                                                            `submissionDate: date ${NN}`] },
+
+  Proceedings:           { x: 1400, y: 950, w: 300, attrs: [`id: number ${U}`, `title: text ${NN}`, `publicationDate: date ${NN}`, `publicationId: text ${U}`] },
+  PublishedContribution: { x: 720,  y: 950, w: 300, attrs: [`id: number ${U}`, `title: text ${NN}`, `firstPage: number ${NN}`, `lastPage: number ${NN}`,
+                                                            "doi: text «unique»"] },
+  ContributionAuthorship:{ x: 960,  y: 790, w: 240, attrs: [`authorOrder: number ${NN}`] },
+};
+
+// ------------------------------------------------------------------ edges
+// pts: polyline points; dash: association-class link; comp: filled diamond at pts[0]
+// labels: [x, y, text, anchor?]
+const edges = [
+  { pts: [[400, 101], [720, 101]], comp: true, labels: [[424, 93, "1"], [712, 93, "0..1", "end"], [560, 93, "has", "middle"]] },
+  { pts: [[1020, 130], [1550, 130], [1550, 460]], comp: true, labels: [[1044, 122, "1"], [1558, 452, "*"], [1285, 122, "contains", "middle"]] },
+  { pts: [[870, 144], [870, 480]], labels: [[878, 164, "*"], [878, 472, "*"], [880, 325, "participates in"]] },
+  { pts: [[1020, 540], [1400, 540]], labels: [[1030, 532, "*"], [1390, 532, "*", "end"], [1300, 532, "involved in", "middle"]] },
+  { pts: [[1210, 540], [1210, 420]], dash: true },
+
+  { pts: [[760, 144], [760, 290], [190, 290], [190, 440]], labels: [[768, 164, "1"], [198, 432, "*"], [470, 282, "submitted to", "middle"]] },
+  { pts: [[340, 500], [720, 500]], labels: [[348, 492, "*"], [712, 492, "1..*", "end"], [712, 518, "author", "end"]] },
+  { pts: [[530, 500], [530, 390]], dash: true },
+  { pts: [[340, 580], [720, 580]], labels: [[348, 572, "*"], [712, 572, "*", "end"], [712, 598, "reviewer", "end"]] },
+  { pts: [[525, 580], [525, 680]], dash: true },
+
+  { pts: [[1020, 70], [1770, 70], [1770, 1010], [1700, 1010]], labels: [[1030, 62, "1"], [1708, 1002, "*"], [1400, 62, "publishes", "middle"]] },
+  { pts: [[1400, 1015], [1020, 1015]], comp: true, labels: [[1376, 1007, "1", "end"], [1030, 1007, "1..*"], [1210, 1007, "contains", "middle"]] },
+  { pts: [[870, 606], [870, 950]], labels: [[878, 626, "1..*"], [862, 626, "author", "end"], [878, 942, "*"]] },
+  { pts: [[870, 820], [960, 820]], dash: true },
+  { pts: [[1020, 592], [1460, 950]], labels: [[1048, 596, "1..*"], [1016, 626, "editor", "end"], [1428, 944, "*", "end"], [1255, 758, "edits"]] },
+
+  { pts: [[190, 632], [190, 1040], [720, 1040]], labels: [[198, 652, "0..1"], [712, 1032, "0..1", "end"], [440, 1032, "results in", "middle"]] },
+];
+
+// ------------------------------------------------------------------ notes
+// UML notes with the constraints; link: dashed line from the note to its element
+const notes = [
+  { x: 480, y: 150, w: 180, link: [[660, 165], [720, 135]],
+    lines: ["{startDate ≤ endDate}"] },
+  { x: 1570, y: 245, w: 185, link: [[1662, 316], [1662, 460]],
+    lines: ["{startDateTime <", " endDateTime}", "{within the dates of its", " ConferenceEdition}"] },
+  { x: 1060, y: 215, w: 380, link: [[1210, 270], [1210, 360]],
+    lines: ["role ∈ {speaker, chair, attendee}", "{the Participant must participate in the", " ConferenceEdition of the Activity}"] },
+  { x: 660, y: 335, w: 205, link: [[660, 360], [640, 360]],
+    lines: ["{authorOrder ≥ 1 and unique", " within each Paper}"] },
+  { x: 40, y: 1150, w: 370, link: [[100, 1150], [100, 632]],
+    lines: ["status ∈ {submitted, under_review, withdrawn}", "decision ∈ {accepted, rejected}",
+            "{decision and decisionDate are both defined", " or both undefined}", "{decisionDate ≥ submissionDate}"] },
+  { x: 400, y: 845, w: 300, link: [[525, 806], [525, 845]],
+    lines: ["{1 ≤ score ≤ 5}", "recommendation ∈ {accept, weak_accept,", " weak_reject, reject}",
+            "{submissionDate ≥ submissionDate of the Paper}",
+            "{the reviewer is not an author of the Paper}"] },
+  { x: 720, y: 1125, w: 300, link: [[870, 1098], [870, 1125]],
+    lines: ["{1 ≤ firstPage ≤ lastPage}", "{page ranges do not overlap within", " the same Proceedings}"] },
+  { x: 960, y: 875, w: 220, link: [[1070, 850], [1070, 875]],
+    lines: ["{authorOrder ≥ 1 and unique", " within each contribution}"] },
+  { x: 440, y: 1075, w: 250, link: [[460, 1040], [460, 1075]],
+    lines: ["{the Paper must be accepted}", "{the Paper and the Proceedings", " belong to the same ConferenceEdition}"] },
+];
+
+// ------------------------------------------------------------- qualifiers
+// x, y: top-left corner of the qualifier box (attached to the side of its class)
+const qualifiers = [
+  { x: 300, y: 88, w: 100, h: 26, text: "year: number" },
+];
+
+// ---------------------------------------------------------------- drawing
+el("text", { x: 40, y: 30, "font-size": 18, fill: "#111" }, null,
+   "Conference Support System — UML Class Diagram (Core + Module A + Module F)");
+const root = el("g", { transform: "translate(0,40)" });
+
+for (const e of edges) {
+  el("polyline", { points: e.pts.map(p => p.join(",")).join(" "), fill: "none", stroke: "#000",
+                   "stroke-width": 1.2, "stroke-dasharray": e.dash ? "6 4" : "none" }, root);
+  if (e.comp) {
+    const [x0, y0] = e.pts[0], [x1, y1] = e.pts[1];
+    const L = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / L, uy = (y1 - y0) / L, nx = -uy, ny = ux;
+    const p = [[x0, y0], [x0 + ux * 9 + nx * 6, y0 + uy * 9 + ny * 6], [x0 + ux * 18, y0 + uy * 18],
+               [x0 + ux * 9 - nx * 6, y0 + uy * 9 - ny * 6]];
+    el("polygon", { points: p.map(q => q.join(",")).join(" "), fill: "#000" }, root);
+  }
+  for (const [x, y, t, anchor] of (e.labels || []))
+    el("text", { x, y, "font-size": 13, "text-anchor": anchor || "start", fill: "#000" }, root, t);
+}
+
+for (const n of notes) {
+  el("polyline", { points: n.link.map(p => p.join(",")).join(" "), fill: "none", stroke: "#000",
+                   "stroke-width": 1, "stroke-dasharray": "3 3" }, root);
+  const h = 14 + n.lines.length * 17;
+  el("path", { d: `M${n.x},${n.y} H${n.x + n.w - 12} L${n.x + n.w},${n.y + 12} V${n.y + h} H${n.x} Z`,
+               fill: "#fff", stroke: "#000", "stroke-width": 1 }, root);
+  el("path", { d: `M${n.x + n.w - 12},${n.y} V${n.y + 12} H${n.x + n.w}`, fill: "none", stroke: "#000", "stroke-width": 1 }, root);
+  n.lines.forEach((t, i) => el("text", { x: n.x + 8, y: n.y + 19 + i * 17, "font-size": 12.5, fill: "#000" }, root, t));
+}
+
+for (const q of qualifiers) {
+  el("rect", { x: q.x, y: q.y, width: q.w, height: q.h, fill: "#fff", stroke: "#000", "stroke-width": 1.2 }, root);
+  el("text", { x: q.x + q.w / 2, y: q.y + 18, "font-size": 13, "text-anchor": "middle", fill: "#000" }, root, q.text);
+}
+
+for (const name in classes) {
+  const c = classes[name];
+  const h = 38 + c.attrs.length * 22;
+  el("rect", { x: c.x, y: c.y, width: c.w, height: h, fill: "#fff", stroke: "#000", "stroke-width": 1.2 }, root);
+  el("line", { x1: c.x, y1: c.y + 30, x2: c.x + c.w, y2: c.y + 30, stroke: "#000", "stroke-width": 1.2 }, root);
+  el("text", { x: c.x + c.w / 2, y: c.y + 20, "font-size": 14, "text-anchor": "middle", fill: "#000" }, root, name);
+  c.attrs.forEach((a, i) =>
+    el("text", { x: c.x + 10, y: c.y + 30 + 20 + i * 22, "font-size": 13, fill: "#000" }, root, a));
+}
+</script>
+</body>
+</html>
