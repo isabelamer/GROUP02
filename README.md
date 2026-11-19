@@ -28,29 +28,30 @@ Execution order: `schema.sql`, then `data.sql` (optional), then `queries.sql`.
 2. **Participation in an edition** is represented by the table `edition_participant`. Triggers enforce that a Participant involved in an Activity also participates in its Conference Edition, including when an Activity changes edition or edition participation is removed.
 3. **Activity dates.** An Activity must fall within its edition (including the full end date). Triggers validate Activity inserts/updates and prevent shortening an edition's dates so that existing Activities fall outside them.
 4. **Roles** in an Activity are limited to `speaker`, `chair` and `attendee`.
+5. **Deletion policy.** The compositions Conference–ConferenceEdition and ConferenceEdition–Activity are implemented with `ON DELETE CASCADE`. Deleting a Conference removes its Editions, and deleting an Edition removes its Activities, involvements and participations. Papers and Proceedings are plain associations (`ON DELETE RESTRICT`), so an Edition that still has Papers or Proceedings cannot be deleted.
 
 ### Module A
 
-5. **Status vs. decision.** The submission `status` (submitted, under review, withdrawn) and the final `decision` (accepted, rejected) are independent attributes of `paper`. `decision` and `decision_date` are both set or both null (CHECK). The condition `decision_date >= submission_date` is also checked.
-6. **Authors and reviewers.** They must be Participants of the system, but not necessarily Participants of the edition (the requirements do not demand it).
-7. **Author order** is stored in `authorship.position`, unique per Paper (deferrable, so authors can be reordered within a transaction).
-8. **One Review per reviewer and Paper** is enforced by the composite primary key of `review`: `(paper, reviewer)`. This prevents the same Participant from submitting two Reviews for the same Paper.
-9. **Extra rule (group decision):** a Participant cannot review a Paper they authored (enforced by trigger).
-10. **Assumed value sets:** review score between 1 and 5; recommendation in `{accept, weak_accept, weak_reject, reject}`.
-11. A Paper must have at least one author. This requirement is not enforced in the schema.
+6. **Status vs. decision.** The submission `status` (submitted, under review, withdrawn) and the final `decision` (accepted, rejected) are independent attributes of `paper`. `decision` and `decision_date` are both set or both null (CHECK). The condition `decision_date >= submission_date` is also checked.
+7. **Authors and reviewers.** They must be Participants of the system, but not necessarily Participants of the edition (the requirements do not demand it).
+8. **Author order** is stored in `authorship.position`, unique per Paper (deferrable, so authors can be reordered within a transaction).
+9. **One Review per reviewer and Paper** is enforced by the composite primary key of `review`: `(paper, reviewer)`. This prevents the same Participant from submitting two Reviews for the same Paper.
+10. **Extra rule (group decision):** a Participant cannot review a Paper they authored (enforced by trigger).
+11. **Assumed value sets:** review score between 1 and 5; recommendation in `{accept, weak_accept, weak_reject, reject}`.
+12. A Paper must have at least one author. This requirement is not enforced in the schema.
 
 ### Module F
 
-12. **Editors.** The requirements state that one or more Participants may act as Editors of a Proceedings publication, so each Proceedings must have at least one editor. This minimum is not enforced in the schema. Editors only need to be Participants of the system.
-13. **Published Contribution authors** keep their order in `contribution_author.position`. At least one author is required; this minimum is not enforced in the schema.
-14. **Page ranges** must satisfy `last_page >= first_page`. Overlap between contributions of the same Proceedings is not checked. If the UML contains such a constraint, it is conceptual only.
-15. `publication_identifier` (ISBN or equivalent) is unique. `doi` is optional and unique when present.
+13. **Editors.** The requirements state that one or more Participants may act as Editors of a Proceedings publication, so each Proceedings must have at least one editor. This minimum is not enforced in the schema. Editors only need to be Participants of the system.
+14. **Published Contribution authors** keep their order in `contribution_author.position`. At least one author is required; this minimum is not enforced in the schema.
+15. **Page ranges** must satisfy `last_page >= first_page`. The UML states that contributions of the same Proceedings must not overlap (C8), but this rule is not enforced in the schema.
+16. `publication_identifier` (ISBN or equivalent) is unique. `doi` is optional and unique when present.
 
 ### Integration A–F
 
-16. `published_contribution.paper_id` is optional and `UNIQUE`. An accepted Paper has at most one Published Contribution, and contributions without a Paper (invited material) are allowed.
-17. **Same edition.** Triggers ensure that a linked Paper and the Proceedings belong to the same Conference Edition, including after updates to either edition.
-18. **Only accepted Papers.** A trigger ensures that a Paper linked to a Published Contribution has `decision = 'accepted'`. Another trigger prevents subsequently changing that decision to a non-accepted value while the Paper remains linked.
+17. `published_contribution.paper_id` is optional and `UNIQUE`. An accepted Paper has at most one Published Contribution, and contributions without a Paper (invited material) are allowed.
+18. **Same edition.** Triggers ensure that a linked Paper and the Proceedings belong to the same Conference Edition, including after updates to either edition.
+19. **Only accepted Papers.** A trigger ensures that a Paper linked to a Published Contribution has `decision = 'accepted'`. Another trigger prevents subsequently changing that decision to a non-accepted value while the Paper remains linked.
 
 ### Not enforced in the schema
 

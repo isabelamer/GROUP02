@@ -20,6 +20,16 @@ DROP TABLE IF EXISTS participant             CASCADE;
 DROP TABLE IF EXISTS conference_edition      CASCADE;
 DROP TABLE IF EXISTS conference              CASCADE;
 
+DROP FUNCTION IF EXISTS check_activity_edition()        CASCADE;
+DROP FUNCTION IF EXISTS check_edition_activities()      CASCADE;
+DROP FUNCTION IF EXISTS check_involvement_edition()     CASCADE;
+DROP FUNCTION IF EXISTS protect_edition_participation() CASCADE;
+DROP FUNCTION IF EXISTS check_contribution_paper()      CASCADE;
+DROP FUNCTION IF EXISTS protect_published_paper()       CASCADE;
+DROP FUNCTION IF EXISTS protect_proceedings_edition()   CASCADE;
+DROP FUNCTION IF EXISTS check_review_not_author()       CASCADE;
+DROP FUNCTION IF EXISTS check_author_not_reviewer()     CASCADE;
+
 -- CORE
 
 CREATE TABLE conference (
@@ -37,7 +47,7 @@ CREATE TABLE conference_edition (
     end_date      DATE NOT NULL,
     location      TEXT NOT NULL,
     CONSTRAINT fk_edition_conference
-        FOREIGN KEY (conference_id) REFERENCES conference(conference_id) ON DELETE RESTRICT,
+        FOREIGN KEY (conference_id) REFERENCES conference(conference_id) ON DELETE CASCADE,
     CONSTRAINT uq_edition_conference_year UNIQUE (conference_id, year),
     CONSTRAINT chk_edition_date_range CHECK (end_date >= start_date)
 );
@@ -68,7 +78,7 @@ CREATE TABLE activity (
     start_time  TIMESTAMP NOT NULL,
     end_time    TIMESTAMP NOT NULL,
     CONSTRAINT fk_activity_edition
-        FOREIGN KEY (edition_id) REFERENCES conference_edition(edition_id) ON DELETE RESTRICT,
+        FOREIGN KEY (edition_id) REFERENCES conference_edition(edition_id) ON DELETE CASCADE,
     CONSTRAINT chk_activity_time_range CHECK (end_time > start_time)
 );
 
@@ -283,6 +293,12 @@ FOR EACH ROW EXECUTE FUNCTION check_involvement_edition();
 -- Removing or changing participation must not invalidate existing involvements.
 CREATE FUNCTION protect_edition_participation() RETURNS TRIGGER AS $$
 BEGIN
+    -- The edition itself is being deleted (cascade): nothing to protect.
+    IF TG_OP = 'DELETE' AND NOT EXISTS (
+        SELECT 1 FROM conference_edition WHERE edition_id = OLD.edition_id
+    ) THEN
+        RETURN OLD;
+    END IF;
     IF EXISTS (
         SELECT 1 FROM involvement i
         JOIN activity a ON a.activity_id = i.activity_id
@@ -372,5 +388,43 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_protect_proceedings_edition
 BEFORE UPDATE OF edition_id ON proceedings
 FOR EACH ROW EXECUTE FUNCTION protect_proceedings_edition();
+
+-- MODULE A: a Participant cannot review a Paper they authored (group decision).
+CREATE FUNCTION check_review_not_author() RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM authorship au
+        WHERE au.paper_id = NEW.paper_id
+          AND au.participant_id = NEW.reviewer_id
+    ) THEN
+        RAISE EXCEPTION 'Participant % cannot review Paper % because they are an author',
+            NEW.reviewer_id, NEW.paper_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_review_not_author
+BEFORE INSERT OR UPDATE OF paper_id, reviewer_id ON review
+FOR EACH ROW EXECUTE FUNCTION check_review_not_author();
+
+-- The same rule seen from the authorship side.
+CREATE FUNCTION check_author_not_reviewer() RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM review r
+        WHERE r.paper_id = NEW.paper_id
+          AND r.reviewer_id = NEW.participant_id
+    ) THEN
+        RAISE EXCEPTION 'Participant % already reviewed Paper % and cannot be an author',
+            NEW.participant_id, NEW.paper_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_author_not_reviewer
+BEFORE INSERT OR UPDATE OF paper_id, participant_id ON authorship
+FOR EACH ROW EXECUTE FUNCTION check_author_not_reviewer();
 
 COMMIT;

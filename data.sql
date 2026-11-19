@@ -121,3 +121,63 @@ INSERT INTO contribution_author (contribution_id, participant_id, position) VALU
 (5, 4, 1), (5, 3, 2);
 
 COMMIT;
+
+-- NEGATIVE TESTS
+-- Each statement below must fail. Run them one at a time, after the data above.
+
+-- Activity outside the dates of its edition (edition 1: 2026-09-14 to 2026-09-16).
+-- INSERT INTO activity (edition_id, title, description, start_time, end_time)
+-- VALUES (1, 'Too early', 'Before the edition.', '2026-09-13 10:00', '2026-09-13 11:00');
+
+-- Involvement of a Participant who does not participate in the edition (10 is not in edition 1).
+-- INSERT INTO involvement (activity_id, participant_id, role) VALUES (1, 10, 'attendee');
+
+-- Removing the participation of someone involved in Activities of that edition.
+-- DELETE FROM edition_participant WHERE edition_id = 1 AND participant_id = 1;
+
+-- Shortening an edition so that existing Activities fall outside it.
+-- UPDATE conference_edition SET end_date = '2026-09-15' WHERE edition_id = 1;
+
+-- Two editions of the same Conference in the same year.
+-- INSERT INTO conference_edition (conference_id, year, start_date, end_date, location)
+-- VALUES (1, 2026, '2026-10-01', '2026-10-02', 'Braga, Portugal');
+
+-- Invalid role.
+-- INSERT INTO involvement (activity_id, participant_id, role) VALUES (6, 1, 'organiser');
+
+-- Second Review by the same reviewer for the same Paper.
+-- INSERT INTO review (paper_id, reviewer_id, score, assessment, recommendation, submission_date)
+-- VALUES (1, 4, 3, 'Duplicate.', 'accept', '2026-04-25');
+
+-- Review score outside 1 to 5.
+-- INSERT INTO review (paper_id, reviewer_id, score, assessment, recommendation, submission_date)
+-- VALUES (4, 1, 6, 'Out of range.', 'accept', '2026-04-25');
+
+-- Author reviewing their own Paper (Participant 1 is an author of Paper 1).
+-- INSERT INTO review (paper_id, reviewer_id, score, assessment, recommendation, submission_date)
+-- VALUES (1, 1, 5, 'Own paper.', 'accept', '2026-04-25');
+
+-- Decision without a decision date.
+-- UPDATE paper SET decision = 'accepted' WHERE paper_id = 4;
+
+-- Two authors in the same position of a Paper (deferred constraint: fails on commit).
+-- INSERT INTO authorship (paper_id, participant_id, position) VALUES (1, 9, 1);
+
+-- Published Contribution linked to a rejected Paper (Paper 3).
+-- INSERT INTO published_contribution (proceedings_id, title, first_page, last_page, paper_id)
+-- VALUES (1, 'Rejected paper', 31, 35, 3);
+
+-- Published Contribution linked to a Paper from another edition (Paper 6 is from edition 2).
+-- INSERT INTO published_contribution (proceedings_id, title, first_page, last_page, paper_id)
+-- VALUES (1, 'Wrong edition', 31, 35, 6);
+
+-- The same Paper published twice (Paper 1 is already published).
+-- INSERT INTO published_contribution (proceedings_id, title, first_page, last_page, paper_id)
+-- VALUES (1, 'Duplicate', 31, 35, 1);
+
+-- Changing the decision of a published Paper.
+-- UPDATE paper SET decision = 'rejected' WHERE paper_id = 1;
+
+-- Invalid page range.
+-- INSERT INTO published_contribution (proceedings_id, title, first_page, last_page)
+-- VALUES (1, 'Bad pages', 40, 35);
