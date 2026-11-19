@@ -207,4 +207,170 @@ CREATE INDEX idx_contribution_proc        ON published_contribution(proceedings_
 CREATE INDEX idx_contribution_author_par  ON contribution_author(participant_id);
 CREATE INDEX idx_editor_participant       ON proceedings_editor(participant_id);
 
+-- CORE: Activities must stay within their edition, and existing involvements
+-- must remain valid if an Activity is moved to another edition.
+CREATE FUNCTION check_activity_edition() RETURNS TRIGGER AS $$
+DECLARE
+    ed conference_edition%ROWTYPE;
+BEGIN
+    SELECT * INTO ed FROM conference_edition WHERE edition_id = NEW.edition_id;
+
+    IF NEW.start_time < ed.start_date::timestamp
+       OR NEW.end_time >= (ed.end_date + 1)::timestamp THEN
+        RAISE EXCEPTION 'Activity % must occur within edition % dates',
+            NEW.activity_id, NEW.edition_id;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM involvement i
+        WHERE i.activity_id = NEW.activity_id
+          AND NOT EXISTS (
+              SELECT 1 FROM edition_participant ep
+              WHERE ep.edition_id = NEW.edition_id
+                AND ep.participant_id = i.participant_id
+          )
+    ) THEN
+        RAISE EXCEPTION 'Activity % has participants outside edition %',
+            NEW.activity_id, NEW.edition_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_activity_edition
+BEFORE INSERT OR UPDATE OF edition_id, start_time, end_time ON activity
+FOR EACH ROW EXECUTE FUNCTION check_activity_edition();
+
+-- An edition's dates cannot be changed so as to exclude existing Activities.
+CREATE FUNCTION check_edition_activities() RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM activity a
+        WHERE a.edition_id = NEW.edition_id
+          AND (a.start_time < NEW.start_date::timestamp
+               OR a.end_time >= (NEW.end_date + 1)::timestamp)
+    ) THEN
+        RAISE EXCEPTION 'Edition % dates would exclude existing Activities', NEW.edition_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_edition_activities
+BEFORE UPDATE OF start_date, end_date ON conference_edition
+FOR EACH ROW EXECUTE FUNCTION check_edition_activities();
+
+-- An Activity involvement is valid only for a Participant of that edition.
+CREATE FUNCTION check_involvement_edition() RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM activity a
+        JOIN edition_participant ep ON ep.edition_id = a.edition_id
+        WHERE a.activity_id = NEW.activity_id
+          AND ep.participant_id = NEW.participant_id
+    ) THEN
+        RAISE EXCEPTION 'Participant % does not participate in the edition of Activity %',
+            NEW.participant_id, NEW.activity_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_involvement_edition
+BEFORE INSERT OR UPDATE OF activity_id, participant_id ON involvement
+FOR EACH ROW EXECUTE FUNCTION check_involvement_edition();
+
+-- Removing or changing participation must not invalidate existing involvements.
+CREATE FUNCTION protect_edition_participation() RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM involvement i
+        JOIN activity a ON a.activity_id = i.activity_id
+        WHERE a.edition_id = OLD.edition_id
+          AND i.participant_id = OLD.participant_id
+    ) THEN
+        RAISE EXCEPTION 'Participant % is involved in Activities of edition %',
+            OLD.participant_id, OLD.edition_id;
+    END IF;
+    IF TG_OP = 'UPDATE' THEN
+        RETURN NEW;
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_protect_edition_participation
+BEFORE DELETE ON edition_participant
+FOR EACH ROW
+EXECUTE FUNCTION protect_edition_participation();
+
+CREATE TRIGGER trg_protect_edition_participation_update
+BEFORE UPDATE OF edition_id, participant_id ON edition_participant
+FOR EACH ROW
+WHEN (OLD.edition_id IS DISTINCT FROM NEW.edition_id
+      OR OLD.participant_id IS DISTINCT FROM NEW.participant_id)
+EXECUTE FUNCTION protect_edition_participation();
+
+-- MODULE A + F: A linked Paper must be accepted and belong to the same
+-- edition as the Proceedings containing its Published Contribution.
+CREATE FUNCTION check_contribution_paper() RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.paper_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM paper pa
+        JOIN proceedings pr ON pr.proceedings_id = NEW.proceedings_id
+        WHERE pa.paper_id = NEW.paper_id
+          AND pa.decision = 'accepted'
+          AND pa.edition_id = pr.edition_id
+    ) THEN
+        RAISE EXCEPTION 'Contribution Paper % must be accepted and from the Proceedings edition',
+            NEW.paper_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_contribution_paper
+BEFORE INSERT OR UPDATE OF paper_id, proceedings_id ON published_contribution
+FOR EACH ROW EXECUTE FUNCTION check_contribution_paper();
+
+-- Subsequent updates must not invalidate an already published Paper.
+CREATE FUNCTION protect_published_paper() RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM published_contribution pc
+        JOIN proceedings pr ON pr.proceedings_id = pc.proceedings_id
+        WHERE pc.paper_id = NEW.paper_id
+          AND (NEW.decision IS DISTINCT FROM 'accepted'
+               OR NEW.edition_id <> pr.edition_id)
+    ) THEN
+        RAISE EXCEPTION 'Paper % is published and must remain accepted in the same edition',
+            NEW.paper_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_protect_published_paper
+BEFORE UPDATE OF decision, edition_id ON paper
+FOR EACH ROW EXECUTE FUNCTION protect_published_paper();
+
+CREATE FUNCTION protect_proceedings_edition() RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM published_contribution pc
+        JOIN paper pa ON pa.paper_id = pc.paper_id
+        WHERE pc.proceedings_id = NEW.proceedings_id
+          AND pa.edition_id <> NEW.edition_id
+    ) THEN
+        RAISE EXCEPTION 'Proceedings % must remain in the edition of its linked Papers',
+            NEW.proceedings_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_protect_proceedings_edition
+BEFORE UPDATE OF edition_id ON proceedings
+FOR EACH ROW EXECUTE FUNCTION protect_proceedings_edition();
+
 COMMIT;

@@ -25,8 +25,8 @@ Execution order: `schema.sql`, then `data.sql` (optional), then `queries.sql`.
 ### Core
 
 1. **Edition identity.** A Conference Edition has a surrogate key `edition_id`. The constraint `UNIQUE (conference_id, year)` ensures that a Conference cannot have two editions in the same year.
-2. **Participation in an edition** is represented by the table `edition_participant`. The rule that a Participant involved in an Activity must participate in the Conference Edition of that Activity is not enforced in the schema.
-3. **Activity dates.** An Activity must fall within its edition. This rule is not enforced in the schema.
+2. **Participation in an edition** is represented by the table `edition_participant`. Triggers enforce that a Participant involved in an Activity also participates in its Conference Edition, including when an Activity changes edition or edition participation is removed.
+3. **Activity dates.** An Activity must fall within its edition (including the full end date). Triggers validate Activity inserts/updates and prevent shortening an edition's dates so that existing Activities fall outside them.
 4. **Roles** in an Activity are limited to `speaker`, `chair` and `attendee`.
 
 ### Module A
@@ -49,14 +49,11 @@ Execution order: `schema.sql`, then `data.sql` (optional), then `queries.sql`.
 ### Integration A–F
 
 16. `published_contribution.paper_id` is optional and `UNIQUE`. An accepted Paper has at most one Published Contribution, and contributions without a Paper (invited material) are allowed.
-17. **Same edition.** The requirement that the Paper and the Proceedings belong to the same Conference Edition is not enforced in the schema.
-18. **Only accepted Papers.** The requirement that a Paper linked to a Published Contribution must have `decision = 'accepted'` is not enforced in the schema. Additionally, a trigger prevents changing the decision of a Paper that has already been published.
+17. **Same edition.** Triggers ensure that a linked Paper and the Proceedings belong to the same Conference Edition, including after updates to either edition.
+18. **Only accepted Papers.** A trigger ensures that a Paper linked to a Published Contribution has `decision = 'accepted'`. Another trigger prevents subsequently changing that decision to a non-accepted value while the Paper remains linked.
 
 ### Not enforced in the schema
 
-- An Activity's start and end must fall within the start and end dates of its Conference Edition.
-- A Participant involved in an Activity must participate in the Conference Edition of that Activity.
-- A Paper linked to a Published Contribution must have `decision = 'accepted'` and belong to the same Conference Edition as the Proceedings of that contribution.
 - Page ranges of Published Contributions in the same Proceedings must not overlap.
 - A Review's `submissionDate` must not precede the `submissionDate` of its Paper.
 - Every Paper must have at least one author.
