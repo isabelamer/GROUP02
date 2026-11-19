@@ -34,10 +34,10 @@ The UML diagram uses conceptual names (e.g. `ConferenceEdition`, `authorOrder`).
 
 ### Module A
 
-6. **Status vs. decision.** The submission `status` (submitted, under review, withdrawn) and the final `decision` (accepted, rejected) are independent attributes of `paper`. `decision` and `decision_date` are both set or both null (CHECK). The condition `decision_date >= submission_date` is also checked.
+6. **Status vs. decision.** The submission `status` (submitted, under review, withdrawn) and the final `decision` (accepted, rejected) are independent attributes of `paper`. `decision` and `decision_date` are both set or both null (CHECK). The condition `decision_date >= submission_date` is also checked. The `status` keeps the last stage of the submission process, so a Paper that has received a decision usually remains `under_review` (as in the example data).
 7. **Authors and reviewers.** They must be Participants of the system, but not necessarily Participants of the edition (the requirements do not demand it).
 8. **Author order** is stored in `authorship.position`, unique per Paper (deferrable, so authors can be reordered within a transaction).
-9. **One Review per reviewer and Paper** is enforced by the composite primary key of `review`: `(paper, reviewer)`. This prevents the same Participant from submitting two Reviews for the same Paper.
+9. **One Review per reviewer and Paper** is enforced by the composite primary key of `review`: `(paper_id, reviewer_id)`. This prevents the same Participant from submitting two Reviews for the same Paper.
 10. **Extra rule (group decision):** a Participant cannot review a Paper they authored (enforced by trigger).
 11. **Assumed value sets:** review score between 1 and 5; recommendation in `{accept, weak_accept, weak_reject, reject}`.
 12. A Paper must have at least one author. This requirement is not enforced in the schema.
@@ -58,7 +58,7 @@ The UML diagram uses conceptual names (e.g. `ConferenceEdition`, `authorOrder`).
 ### Not enforced in the schema
 
 - Page ranges of Published Contributions in the same Proceedings must not overlap.
-- A Review's `submissionDate` must not precede the `submissionDate` of its Paper.
+- A Review's `submission_date` must not precede the `submission_date` of its Paper.
 - Every Paper must have at least one author.
 - Every Published Contribution must have at least one author.
 - Every Proceedings must have at least one Published Contribution.
@@ -69,6 +69,7 @@ The UML diagram uses conceptual names (e.g. `ConferenceEdition`, `authorOrder`).
 - Example parameters: `edition_id = 1` and `proceedings_id = 1`.
 - Core Q1 uses `LEFT JOIN`, so Activities without Participants are listed.
 - Core Q2 counts distinct Activities per Participant and orders from largest to smallest.
+- Module A Q1 interprets "submitted Papers" as all Papers submitted to the edition, whatever their current `status` (including withdrawn ones).
 - Module A Q2 uses `LEFT JOIN`, so Papers without Reviews appear (0 reviews, average NULL).
 - Module F Q1 orders by `first_page`, then by `position`.
 - Module F Q2 aggregates the Editors into a single column (`string_agg`) and counts contributions with correlated subqueries to avoid duplicated rows.

@@ -1,11 +1,12 @@
 -- Conference Support System
 -- Core + Module A + Module F
--- PostgreSQL 14+
+-- PostgreSQL (tested on version 18)
 
 SET client_min_messages TO WARNING;
 
 BEGIN;
 
+-- Remove previous objects so that the script can be run more than once.
 DROP TABLE IF EXISTS proceedings_editor      CASCADE;
 DROP TABLE IF EXISTS contribution_author     CASCADE;
 DROP TABLE IF EXISTS published_contribution  CASCADE;
@@ -217,6 +218,9 @@ CREATE INDEX idx_contribution_proc        ON published_contribution(proceedings_
 CREATE INDEX idx_contribution_author_par  ON contribution_author(participant_id);
 CREATE INDEX idx_editor_participant       ON proceedings_editor(participant_id);
 
+-- TRIGGERS
+-- Rules that cannot be expressed with PRIMARY KEY, FOREIGN KEY, UNIQUE or CHECK.
+
 -- CORE: Activities must stay within their edition, and existing involvements
 -- must remain valid if an Activity is moved to another edition.
 CREATE FUNCTION check_activity_edition() RETURNS TRIGGER AS $$
@@ -370,6 +374,7 @@ CREATE TRIGGER trg_protect_published_paper
 BEFORE UPDATE OF decision, edition_id ON paper
 FOR EACH ROW EXECUTE FUNCTION protect_published_paper();
 
+-- Proceedings cannot move to an edition different from that of their linked Papers.
 CREATE FUNCTION protect_proceedings_edition() RETURNS TRIGGER AS $$
 BEGIN
     IF EXISTS (

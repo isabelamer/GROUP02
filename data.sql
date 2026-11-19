@@ -1,5 +1,6 @@
 -- Example data for Core + Module A + Module F
--- Run after schema.sql, on a fresh database.
+-- Run after schema.sql. The tables must be empty, because the
+-- inserts assume that identity values start at 1.
 
 BEGIN;
 
