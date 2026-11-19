@@ -1,7 +1,6 @@
 -- Example parameters: edition_id = 1, proceedings_id = 1
 
 -- Core Q1
--- LEFT JOINs keep Activities that have no Participants.
 SELECT  a.activity_id,
         a.title,
         a.start_time,
@@ -26,7 +25,6 @@ GROUP BY p.participant_id, p.name
 ORDER BY num_activities DESC, p.name;
 
 -- Module A Q1
--- LEFT JOINs keep Papers that have no Authors.
 SELECT  pa.paper_id,
         pa.title,
         au.position,
@@ -38,7 +36,6 @@ WHERE pa.edition_id = 1
 ORDER BY pa.paper_id, au.position NULLS LAST;
 
 -- Module A Q2
--- LEFT JOIN keeps Papers without Reviews (count 0, average NULL).
 SELECT  pa.paper_id,
         pa.title,
         COUNT(r.reviewer_id)   AS num_reviews,
@@ -50,7 +47,6 @@ GROUP BY pa.paper_id, pa.title
 ORDER BY pa.paper_id;
 
 -- Module F Q1
--- LEFT JOINs keep Contributions that have no Authors.
 SELECT  pc.contribution_id,
         pc.first_page,
         pc.last_page,
